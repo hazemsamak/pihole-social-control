@@ -1,8 +1,6 @@
 
-import requests
 import os
-import json
-from datetime import datetime
+import requests
 
 class PiHoleClient:
     def __init__(self):
