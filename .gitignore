@@ -8,6 +8,8 @@ env/
 
 # Environment Variables (Critical)
 .env
+docker-compose.override.yml
+docker-compose*.override.yml
 
 # IDEs
 .vscode/

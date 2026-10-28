@@ -1,4 +1,3 @@
-
 import os
 import requests
 
@@ -37,11 +36,8 @@ class PiHoleClient:
             
         url = f"{self.base_url}/api/auth"
         try:
-            # User requested: /api/auth?sid=<sid>
-            # We send DELETE to this URL.
             print(f"DEBUG: Logging out from PiHole with SID: {self.sid[:5]}...")
-            response = self.session.delete(url, params={"sid": self.sid})
-            print(f"DEBUG: Logout Response: {response.status_code}")
+            self.session.delete(url, params={"sid": self.sid})
         except Exception as e:
             print(f"Error logging out from PiHole: {e}")
         finally:
@@ -54,16 +50,31 @@ class PiHoleClient:
             return self.login()
         return True
 
+    def request(self, method, endpoint, **kwargs):
+        """Sends an authenticated request, automatically re-authenticating if session expired (401)."""
+        if not self._ensure_auth():
+            return None
+
+        url = f"{self.base_url}{endpoint}" if endpoint.startswith("/") else f"{self.base_url}/{endpoint}"
+        try:
+            response = self.session.request(method, url, **kwargs)
+            if response.status_code == 401:
+                print("DEBUG: Received 401 Unauthorized, session expired. Re-authenticating...")
+                self.sid = None
+                if "X-FTL-SID" in self.session.headers:
+                    del self.session.headers["X-FTL-SID"]
+                if self.login():
+                    response = self.session.request(method, url, **kwargs)
+                else:
+                    print("DEBUG: Re-authentication failed.")
+                    return None
+            return response
+        except Exception as e:
+            print(f"Error making request to {url}: {e}")
+            return None
+
     def toggle_group(self, group_name="Social", enable=True):
         """Enables or disables a group."""
-        if not self._ensure_auth():
-            return False
-
-        url = f"{self.base_url}/api/groups/{group_name}"
-        # Based on user description:
-        # Enable: body {"enabled": true}
-        # Disable: body {"name": "Social", "comment": "Social Media", "enabled": false}
-        
         if enable:
             payload = {"enabled": True}
         else:
@@ -75,14 +86,13 @@ class PiHoleClient:
             
         try:
             print(f"DEBUG: Toggling group {group_name} to {enable}. Payload: {payload}")
-            response = self.session.put(url, json=payload)
-            print(f"DEBUG: Response Status: {response.status_code}")
-            print(f"DEBUG: Response Body: {response.text}")
-            
-            if response.status_code in [200, 204]:
+            response = self.request("PUT", f"/api/groups/{group_name}", json=payload)
+            if response is not None and response.status_code in [200, 204]:
                 return True
             else:
-                print(f"Failed to toggle group: {response.status_code} {response.text}")
+                status = response.status_code if response is not None else "No Response"
+                text = response.text if response is not None else ""
+                print(f"Failed to toggle group: {status} {text}")
                 return False
         except Exception as e:
             print(f"Error toggling group: {e}")
@@ -91,27 +101,20 @@ class PiHoleClient:
     def get_group_id(self, group_name):
         """Fetches the numeric ID of a group by name."""
         try:
-            # Try getting all groups or specific group to find ID
-            # Assuming GET /api/groups returns list
-            url = f"{self.base_url}/api/groups" 
-            response = self.session.get(url)
-            if response.status_code == 200:
+            response = self.request("GET", "/api/groups")
+            if response is not None and response.status_code == 200:
                 groups = response.json()
                 if isinstance(groups, dict) and 'groups' in groups:
-                     groups = groups['groups'] # Handle standard PiHole v5/v6 structure?
+                     groups = groups['groups']
                 
-                # If groups is a list, search it
                 if isinstance(groups, list):
                     for g in groups:
                          if g.get('name') == group_name:
                              return g.get('id')
                 
-                # If GET /api/groups/Social works and returns full obj
-                url_specific = f"{self.base_url}/api/groups/{group_name}"
-                resp_spec = self.session.get(url_specific)
-                if resp_spec.status_code == 200:
+                resp_spec = self.request("GET", f"/api/groups/{group_name}")
+                if resp_spec is not None and resp_spec.status_code == 200:
                     data = resp_spec.json()
-                    # Handle if it returns a list or dict
                     if isinstance(data, list) and len(data) > 0:
                         return data[0].get('id')
                     elif isinstance(data, dict):
@@ -125,17 +128,11 @@ class PiHoleClient:
 
     def add_client_to_group(self, client_ip, group_name="Social"):
         """Adds a client and assigns it to the group."""
-        if not self._ensure_auth():
-            return False
-        
         group_id = self.get_group_id(group_name)
         if group_id is None:
-            # Fallback: User's example had 2, but relying on fetch is safer.
-            # If fetch fails, we can't properly add to the correct group.
             print("Failed to resolve Group ID. Cannot add client.")
             return False
             
-        url = f"{self.base_url}/api/clients/"
         payload = {
             "client": client_ip,
             "comment": "Social Media User",
@@ -144,10 +141,8 @@ class PiHoleClient:
         
         try:
             print(f"DEBUG: Adding client {client_ip} to group {group_id}")
-            response = self.session.post(url, json=payload)
-            print(f"DEBUG: Add Client Response: {response.status_code} {response.text}")
-            
-            if response.status_code in [200, 201]:
+            response = self.request("POST", "/api/clients/", json=payload)
+            if response is not None and response.status_code in [200, 201]:
                 return True
             else:
                 return False
@@ -157,45 +152,22 @@ class PiHoleClient:
 
     def remove_client(self, client_ip):
         """Removes the client."""
-        if not self._ensure_auth():
-            return False
-            
-        # According to user: DELETE "http://pihole/api/clients/<client>"
-        # Assuming <client> is the IP.
-        
-        # User also mentioned "get all clients... and delete all clients".
-        # But logical flow is to delete just the target one.
-        # I will just call DELETE directly on the IP.
-        
-        url = f"{self.base_url}/api/clients/{client_ip}"
-        
         try:
             print(f"DEBUG: Removing client {client_ip}")
-            response = self.session.delete(url)
-            print(f"DEBUG: Delete Client Response: {response.status_code} {response.text}")
-            
-            if response.status_code in [200, 204]:
-                return True
-            elif response.status_code == 404:
-                # Client already gone, consider success
+            response = self.request("DELETE", f"/api/clients/{client_ip}")
+            if response is not None and response.status_code in [200, 204, 404]:
                 return True
             else:
                 return False
         except Exception as e:
             print(f"Error removing client: {e}")
             return False
-        
+
     def get_status(self, group_name="Social"):
         """Gets the status (Blocked/Unblocked)."""
-        if not self._ensure_auth():
-            return "Unknown"
-            
-        # Check group status
-        url = f"{self.base_url}/api/groups/{group_name}"
         try:
-            response = self.session.get(url)
-            print(f"DEBUG: Status Check {url} -> {response.status_code}")
-            if response.status_code == 200:
+            response = self.request("GET", f"/api/groups/{group_name}")
+            if response is not None and response.status_code == 200:
                 data = response.json()
                 
                 # Handle nested 'groups' key (PiHole v6 structure)
@@ -211,7 +183,6 @@ class PiHoleClient:
                         return "Unblocked" 
                 
                 is_enabled = data.get("enabled")
-                # print(f"DEBUG: Derived Enabled State: {is_enabled}")
                 return "Blocked" if is_enabled else "Unblocked"
         except Exception as e:
             print(f"Error checking status: {e}")
@@ -239,4 +210,3 @@ class PiHoleClient:
                     return "Unblocked"
         
         return "Error"
-
