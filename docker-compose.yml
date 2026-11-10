@@ -10,6 +10,8 @@ services:
       - PIHOLE_PASSWORD=${PIHOLE_PASSWORD}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
       - CLIENT_IP=${CLIENT_IP}
+      - APP_PASSWORD=${APP_PASSWORD}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
     volumes:
       - .:/app
     restart: unless-stopped
