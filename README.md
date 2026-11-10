@@ -1,7 +1,7 @@
 # PiHole Social Control
 
 <p align="center">
-  <img src="./docs/screenshots/dashboard.png" alt="PiHole Social Control Dashboard" width="75%" />
+  <img src="./docs/screenshots/hero.png" alt="PiHole Social Control Showcase" width="100%" />
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@ A sleek, responsive web dashboard and Progressive Web App (PWA) designed to togg
 
 ## Table of Contents
 
-- [Screenshots](#screenshots)
+- [Interface & States](#interface--states)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
 - [How It Works](#how-it-works)
@@ -37,19 +37,17 @@ A sleek, responsive web dashboard and Progressive Web App (PWA) designed to togg
 
 ---
 
-## Screenshots
+## Interface & States
 
 <div align="center">
   <table>
     <tr>
-      <td align="center"><b>Dashboard (Desktop)</b></td>
-      <td align="center"><b>Authentication Screen</b></td>
-      <td align="center"><b>Mobile App (PWA)</b></td>
+      <td align="center" width="50%"><b>Active Access (Social Allowed)</b></td>
+      <td align="center" width="50%"><b>Restricted Access (Social Blocked)</b></td>
     </tr>
     <tr>
-      <td valign="top"><img src="./docs/screenshots/dashboard.png" width="360" alt="Dashboard Screen"/></td>
-      <td valign="top"><img src="./docs/screenshots/login.png" width="360" alt="Login Screen"/></td>
-      <td valign="top"><img src="./docs/screenshots/mobile.png" width="200" alt="Mobile Dashboard"/></td>
+      <td align="center"><img src="./docs/screenshots/status_unblocked.png" width="400" alt="Active Access - Unblocked"/></td>
+      <td align="center"><img src="./docs/screenshots/status_blocked.png" width="400" alt="Restricted Access - Blocked"/></td>
     </tr>
   </table>
 </div>
@@ -228,6 +226,12 @@ Content-Type: application/json
 ## Progressive Web App (PWA) Setup
 
 You can install PiHole Social Control on your mobile device as an app without going through an app store:
+
+<div align="center">
+  <img src="./docs/screenshots/mobile.png" width="260" alt="Mobile PWA Dashboard" style="border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);" />
+</div>
+
+<br/>
 
 - **iOS (Safari)**:
   1. Open the dashboard URL in Safari.
