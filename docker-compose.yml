@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   pihole-control:
+    container_name: pihole-social-control
     build: .
     ports:
       - "5000:5000"
